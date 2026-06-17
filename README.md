@@ -26,6 +26,39 @@ Quando não houver alavanca de custo direta para a seção, isso é registrado e
 
 ---
 
+## Prompts e pipeline de refatoração
+
+Este repositório acompanha dois meta-prompts e um pipeline determinístico que mantêm o playbook com baixo custo de tokens — aplicando as próprias técnicas que ele descreve (JIT slicing, prompt cascade, model routing e patch determinístico).
+
+### Prompts (`.github/prompts/`)
+
+| Arquivo | Uso | Como chamar |
+|---|---|---|
+| `lite-refact.prompt.md` | **Slash command interativo**: refatora uma seção usando o Copilot como LLM + os scripts determinísticos (slice/route/patch). | No Copilot Chat, digite `/lite-refact` e informe seção, instrução e classe. |
+| `playbook-refact.prompt.md` | Regeneração completa / expansão estrutural do playbook (operação pesada, alto consumo). | No Copilot Chat (VS Code), digite `/playbook-refact` e cole o documento base no campo `[DOCUMENTO BASE]`. |
+| `scripts/templates/lite-refact.template.md` | Prefixo estável (prefix-cacheável) injetado pelo pipeline headless. Não é um slash command — é o template consumido pelos scripts. | Via `scripts/run_lite_refact.py` (ver abaixo). |
+
+### Pipeline lite-refact (`scripts/`)
+
+Fluxo determinístico — zero token fora da única chamada ao LLM:
+
+`context_slicer` (fatia a seção) → `model_router` (escolhe o tier) → `prompt_templates` (monta o prompt cascade) → LLM (emite **só** a seção nova) → `patch_applier` (substitui e valida o Markdown).
+
+```bash
+cd scripts
+# Dry-run: monta o prompt e mostra a rota, sem chamar o LLM nem gravar nada
+python run_lite_refact.py \
+  --file ../README.md \
+  --section "5.4. Cost Engineering" \
+  --instruction "Adicionar uma linha sobre budgets por skill." \
+  --class conteudo-tecnico \
+  --dry-run
+```
+
+Para aplicar de verdade, implemente `call_llm()` em `run_lite_refact.py` (adaptador do seu provedor) e rode sem `--dry-run`. As classes de tarefa (`--class`) são `texto`, `conteudo-tecnico` e `arquitetura`, roteadas para os tiers `tier-small-fast`, `tier-mid-balanced` e `tier-frontier-reasoning`.
+
+---
+
 ## Sumário
 
 1. [Resumo executivo](#1-resumo-executivo)
