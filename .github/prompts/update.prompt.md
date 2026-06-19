@@ -37,23 +37,24 @@ o documento inteiro.
    produza **somente** o markdown da seção refatorada, começando pelo mesmo cabeçalho
    (mesmo nível e numeração). Sem cercas externas, sem preâmbulo, sem outras seções.
 
-3. **Gravar em arquivo temporário.** Escreva a seção gerada em
-   `scripts/.update.tmp.md` (somente o conteúdo da seção).
+3. **Gravar em arquivo temporário do sistema.** Escreva a seção gerada em um caminho
+   fora do repositório, preferencialmente em `${TMPDIR:-/tmp}`, usando `mktemp` e um `trap`
+   para remover o arquivo em qualquer saída do processo (somente o conteúdo da seção).
 
 4. **Aplicar por ciclo determinístico com retroalimentação (valida e registra).**
    ```bash
    python3 scripts/update_cycle.py \
      --file README.md \
      --section "${input:secao}" \
-   --new-content scripts/.update.tmp.md
+   --new-content "<arquivo-temporario-fora-do-repo>"
    ```
    Se o ciclo reprovar (nível de cabeçalho mudou, cercas desbalanceadas),
    corrija a seção gerada e repita o passo 3–4. Não force.
 
 5. **Validar e limpar.** Cheque `README.md` no painel de problemas (`#problems`).
-   Remova `scripts/.update.tmp.md`. O backup `README.md.bak` é criado pelo ciclo
-   (via `patch_applier`) — mantenha ou descarte conforme preferir. Consulte também
-   o último evento em `scripts/.update-history.jsonl`.
+   O arquivo temporário da etapa 3 deve ser removido automaticamente pelo `trap`; mantenha
+   o backup `README.md.bak` criado pelo ciclo (via `patch_applier`) ou descarte-o conforme
+   preferir. Consulte também o último evento em `scripts/.update-history.jsonl`.
 
 # [OUTPUT]
 Sem saudações nem preenchimento. Responda com:

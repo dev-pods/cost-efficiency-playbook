@@ -13,6 +13,7 @@ Refactor or expand README.md as an executive-technical how-to manual focused on 
 - Prefer local deterministic steps (slice, route, patch, validate) before broad generation.
 - Keep changes scoped to target sections and avoid unrelated rewrites.
 - Preserve heading hierarchy and anchor stability when possible.
+- If a deterministic cycle yields no new signal for the same target, stop and return control rather than repeating the same pass.
 
 ## Section Authoring Contract
 - Keep conceptual rationale concise (max 3 sentences per topic).
@@ -37,6 +38,7 @@ When expanding catalog or pillars, ensure explicit coverage for:
    - generate section content
    - apply via scripts/update_cycle.py for patch + feedback history
 3. Validate markdown integrity and summarize risk.
+4. Do not rerun the same section cycle without new input or a changed planning signal.
 
 ## Section Template
 Use scripts/templates/playbook-section.template.md as the default skeleton for new or heavily revised sections.

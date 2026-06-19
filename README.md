@@ -28,65 +28,77 @@ Quando não houver alavanca de custo direta para a seção, isso é registrado e
 
 ## Instruções, prompts e pipeline de refatoração
 
-Este repositório acompanha uma instruction de refatoração macro, um prompt cirúrgico e um pipeline determinístico para manter o playbook com baixo custo de tokens — aplicando as próprias técnicas que ele descreve (JIT slicing, prompt cascade, model routing e patch determinístico).
+Use esta seção como guia de execução: escolha a chamada certa, aplique mudança mínima e valide no final.
 
-### Instruções e prompts (`.github/instructions/` + `.github/prompts/`)
+### Fluxo prático (visão única)
 
-| Arquivo | Uso | Como chamar |
-|---|---|---|
-| `.github/instructions/playbook-update.instructions.md` | **Instruction de expansão/refatoração macro**: guia estrutural para mudanças amplas no `README.md`, com foco em deterministic-first e FinOps. | No Chat, adicione a instruction **Playbook Update Guidance** ao contexto e execute a tarefa de refatoração. |
-| `update.prompt.md` | **Slash command interativo**: atualiza uma seção usando o Copilot como LLM + os scripts determinísticos (slice/route/patch). | No Copilot Chat, digite `/update` e informe seção, instrução e classe. |
-| `scripts/templates/update.template.md` | Prefixo estável (prefix-cacheável) injetado pelo pipeline headless. Não é um slash command — é o template consumido pelos scripts. | Via `scripts/run_update.py` (ver abaixo). |
-| `scripts/templates/playbook-section.template.md` | Template de seção para refatorações maiores (estrutura objetivo/problemas/mecanismo/implementação). | Use como base para seções novas ou reescritas extensas. |
-| `scripts/templates/playbook-item.template.md` | Template de item para H3+ com sugestão padronizada, implementação, validação e alavanca de custo. | Use para padrões operacionais, quick wins e recomendações pontuais do playbook. |
+```mermaid
+flowchart LR
+  A[Pedido de alteracao] --> B[Pergunta 1 tipo de mudanca]
+  B --> C[Pergunta 2 secao principal]
+  C --> D[Pergunta 3 subsecao opcional]
+  D --> E[Pergunta 4 contexto opcional]
+  E --> F[Conferir alvo no README]
+  F --> G{Alvo claro}
+  G -->|nao| H[Voltar e pedir esclarecimento]
+  H --> B
+  G -->|sim| I[Validar risco e dependencias uma vez]
+  I --> J{Pode seguir}
+  J -->|nao| K[Aguardando usuario]
+  J -->|sim| L[Pronto para executar]
+  L --> M[Escolher melhor caminho]
+  M --> N[Tentativa principal]
+  N --> O{Validou}
+  O -->|sim| S[Validador final]
+  O -->|nao| P[Plano B]
+  P --> Q{Validou}
+  Q -->|sim| S
+  Q -->|nao| R[Plano C]
+  R --> S
+  S --> T[Resumo final com riscos]
+```
 
-Exemplos de uso no ponto de entrada (onde antes era apenas slash command):
+### Seleção guiada obrigatória (entrada)
 
-1. Atualização cirúrgica via `/update`:
-  - "Atualize a seção 6.6.1 para incluir rtk e caveman como quick wins de CLI, com critério de adoção por custo por tarefa."
-2. Atualização estrutural via instruction `Playbook Update Guidance`:
-  - "Inclua headroom e lean-ctx na seção 6.3.2, ajuste 12.2 Quick wins e adicione links em 14. Fontes e referências."
+1. Tipo de alteração: `adicionar conteudo` | `refatorar existente` | `remover` | `reorganizar`.
+2. Seção principal: escolher seção de nível principal do README.
+3. Subseção (opcional): escolher somente dentro da seção principal selecionada.
+4. Descrição livre (opcional): contexto para correlação final.
 
-### Modo agente roteado por chat (`.github/agents/`)
+### Validação progressiva (progressive validation) e limites operacionais
 
-Além de slash command, este repositório agora suporta delegação via agente customizado: você descreve a mudança no chat e o orquestrador roteia o trabalho para subagentes especializados.
+- Primeiro coletar e validar os campos 1-3; o campo 4 pode ficar vazio para refinamento no final.
+- Executar `planner_discovery.py --file README.md` uma única vez no início para montar a memória de consulta (cache) de seções/subseções.
+- Fazer correspondência inteligente (lazy match) da seção escolhida contra o cache; se falhar, encerrar cedo (early return) e oferecer alternativas via HITL.
+- Se houver subseção, validar com reutilização do mesmo cache (sem nova chamada).
+- Se houver descrição livre, executar `planner_discovery.py --file README.md --query "..."` apenas neste ponto.
+- Limites por rodada: descoberta (discovery) até 2 execuções (base + query opcional) e pré-checagem (preflight) exatamente 1 execução após seleção confirmada.
+- Cache de discovery/preflight é obrigatório na sessão para evitar chamadas redundantes.
+- Referências de template (compatibilidade técnica): `scripts/templates/update.template.md`, `scripts/templates/playbook-section.template.md`, `scripts/templates/playbook-item.template.md`.
 
-| Arquivo | Papel | Uso |
-|---|---|---|
-| `.github/agents/01-playbook-router.agent.md` | Orquestrador invocável no chat. | Recebe o pedido, delega para planner/editor/validator e consolida resposta. |
-| `.github/agents/02-playbook-planner.agent.md` | Planejamento read-only. | Mapeia seções-alvo e ordem de execução com risco por etapa. |
-| `.github/agents/03-playbook-editor.agent.md` | Execução de edição. | Aplica mudanças mínimas usando pipeline `scripts/run_update.py` + `scripts/update_cycle.py` (patch + feedback local). |
-| `.github/agents/04-playbook-validator.agent.md` | Validação final. | Checa integridade de markdown, escopo e cobertura do pedido. |
+### Protocolo HITL (human-in-the-loop) e regra de status
 
-Fluxo recomendado:
+- Gatilhos principais: interpretações múltiplas, dependência cruzada, alteração estrutural, conflito local-global, `confidence < 0.8`, `risk_score > 0.6`, avisos (warnings) do preflight.
+- Enquanto existir pergunta pendente ou validação incompleta, manter `status=aguardando_usuario`.
+- Somente após resolução dos gatilhos e confirmação final da seleção, avançar com `status=pronto_para_execucao`.
 
-1. No chat, selecione o agente **Playbook Router**.
-2. Descreva a mudança (ex.: “incluir quick wins de context compression na seção 6.6”).
-3. O router delega: Planner -> Editor -> Validator.
-4. Revise o resumo final com seções alteradas, validação e riscos.
+### Descoberta de recursos do agente (Agentic Resource Discovery) na execução do Editor
 
-Princípios operacionais deste modo:
+| Recurso | Quando escolher | Validação mínima | Fallback (contingência) |
+|---|---|---|---|
+| `skill-wrapper` (preferencial) | Mudança padrão de seção única e risco baixo/médio | `update_with_assertions.sh` + validação estrutural | `python-direct` |
+| `python-direct` | Mudança com correlação por query ou multi-etapa | `run_update.py`/`update_cycle.py` + guardas estritos | `prompt-update` |
+| `prompt-update` (final) | Apenas quando caminhos determinísticos falharem na rodada | revisão manual obrigatória | manual review |
 
-- Deterministic-first: usar scripts locais para slicing, patch e validação antes de qualquer raciocínio adicional.
-- README-first: cada ciclo parte do estado atual de `README.md` como fonte de verdade.
-- Feedback loop local: cada patch gera evento em `scripts/.update-history.jsonl` com hash antes/depois e delta de tamanho da seção.
+### Formato de saída esperado do Planner (planning agent)
 
-Referência de arquitetura (inspiração): [Ultralight](https://burkeholland.github.io/ultralight/), abordagem “the right model for the right job” com orquestração e delegação por especialidade.
-
-Guardrails de template:
-
-- `scripts/templates/update.template.md` obriga o uso explícito de `scripts/templates/playbook-item.template.md` para itens operacionais em H3+.
-- `.github/instructions/playbook-update.instructions.md` prende o contrato de autoria para mudanças macro no `README.md`.
-- `scripts/validate_readme_structure.py` valida que os templates obrigatórios existem e estão mencionados no `README.md`.
-
-### Pipeline update (`scripts/`)
-
-Fluxo determinístico local: `context_slicer` → `model_router` → `prompt_templates` → LLM → `patch_applier`. Cada ciclo registra evento em `scripts/.update-history.jsonl` (hash antes/depois, delta de tamanho) para auditoria.
-
-O uso operacional deste pipeline é responsabilidade do agente **Playbook Editor** — que executa `scripts/run_update.py` e `scripts/update_cycle.py` automaticamente como parte do fluxo roteado.
+- Campos mínimos: intenção; mapa global mínimo (objetivo, cobertura atual, gaps, dependências); seções candidatas; sequência 1..N com risco; invariantes; critérios de validação; sinal de retroalimentação esperado.
+- `planning_score`: `coverage_percent`, `risk_score`, `confidence`, `status`.
+- Evidências determinísticas: comando de discovery + resumo do JSON usado; comando de preflight + resumo do JSON usado.
+- Recomendação de recurso: `resource_recommendation`, `motivo_curto`, `fallback_defined`.
+- Resposta compacta: até 12 bullets, sem repetição de trechos longos do README; quando `status=pronto_para_execucao`, incluir somente o necessário para o Editor.
 
 ---
-
 ## Sumário
 
 1. [Resumo executivo](#1-resumo-executivo)
@@ -136,6 +148,10 @@ O uso operacional deste pipeline é responsabilidade do agente **Playbook Editor
       - [6.5.2 .copilot-instructions.md](#652-copilot-instructionsmd)
       - [6.5.3 .github/copilot-instructions.md](#653-githubcopilot-instructionsmd)
       - [6.5.4 .agent.md](#654-agentmd)
+    - [6.5.5 Prompts](#655-prompts)
+    - [6.5.6 Skills](#656-skills)
+    - [6.5.7 Plugins/extensões](#657-pluginsextensoes)
+    - [6.5.8 MCP](#658-mcp)
    - [6.6 Extensões e Ferramentas](#66-extensoes-e-ferramentas)
       - [6.6.1 CLI de IA](#661-cli-de-ia)
       - [6.6.2 Extensões de IDE](#662-extensoes-de-ide)
@@ -195,7 +211,6 @@ O uso operacional deste pipeline é responsabilidade do agente **Playbook Editor
 16. [Conclusão](#16-conclusao)
 
 ---
-
 ## 1. Resumo executivo
 
 O que há de mais moderno nessa linha de performance, otimização e redução de custos não é uma técnica isolada. É a combinação de cinco movimentos arquiteturais:
@@ -1581,6 +1596,106 @@ model: tier-small-fast
 
 **Alavanca de custo direta**
 - `Model routing`, ao fixar o tier correto por papel.
+
+#### 6.5.5. Prompts
+
+**Quando usar**
+- quando o ajuste é local, curto e ligado a uma única tarefa;
+- quando a intenção muda com frequência e não compensa um artefato reutilizável;
+- quando a meta é reduzir ambiguidade sem inflar contexto permanente.
+
+**Sugestão padronizada**
+- Problema que evita: instrução longa demais para uma tarefa pontual.
+- Decisão recomendada: manter objetivo, formato e restrições mínimas; nada que já deva viver em 5.5/5.7.
+- Critério de adoção: usar só quando o fluxo não pede reutilização nem integração adicional.
+- Risco ou limite: o prompt vira regra permanente e perde foco.
+
+**Como implementar**
+1. Declarar objetivo e saída esperada em poucas linhas.
+2. Incluir apenas o contexto que altera a resposta.
+3. Fixar tom, formato e corte de escopo.
+
+**Validação**
+- Sinal de adoção correta: a resposta fica previsível sem instruções suplementares.
+- Sinal de uso inadequado: o prompt passa a carregar regras duradouras ou múltiplos objetivos.
+
+**Alavanca de custo direta**
+- `Prompt compaction`; quando o conteúdo estabiliza, `prefix caching`.
+
+#### 6.5.6. Skills
+
+**Quando usar**
+- quando a tarefa é repetível e pede um fluxo reutilizável com gatilho claro;
+- quando há etapas previsíveis e validação própria;
+- quando vale encapsular o procedimento sem espalhar instruções por múltiplos prompts.
+
+**Sugestão padronizada**
+- Problema que evita: repetir procedimentos manuais ou improvisar variantes do mesmo fluxo.
+- Decisão recomendada: transformar o procedimento em skill com escopo pequeno, entradas explícitas e saída verificável.
+- Critério de adoção: usar para rotinas estáveis que se beneficiam de reuso e governança.
+- Risco ou limite: skill genérica demais vira um segundo README.
+
+**Como implementar**
+1. Declarar o gatilho da skill e o resultado esperado.
+2. Descrever passos em sequência curta e verificável.
+3. Incluir validação própria e limites de uso.
+
+**Validação**
+- Sinal de adoção correta: o mesmo fluxo é executado de forma consistente em tarefas repetidas.
+- Sinal de uso inadequado: a skill acumula exceções e regras de múltiplos contextos.
+
+**Alavanca de custo direta**
+- `Tool reuse` e menos retrabalho em fluxos recorrentes.
+
+#### 6.5.7. Plugins/extensões
+
+**Quando usar**
+- quando a customização precisa atuar na interface, automação local ou experiência do editor;
+- quando o ganho vem da superfície de trabalho e não de texto adicional;
+- quando a mudança precisa ficar perto do usuário com baixo atrito operacional.
+
+**Sugestão padronizada**
+- Problema que evita: automatizar manualmente ações repetidas dentro do editor ou da IDE.
+- Decisão recomendada: usar plugin/extensão quando a melhoria é de UX, produtividade local ou integração visual; o resto fica em 6.6.
+- Critério de adoção: preferir quando o caso depende da experiência interativa e não de um fluxo de prompt.
+- Risco ou limite: extensões redundantes aumentam manutenção e podem conflitar entre si.
+
+**Como implementar**
+1. Delimitar a tarefa de interface ou automação coberta.
+2. Registrar dependências e permissões mínimas necessárias.
+3. Prever fallback quando a extensão não estiver disponível.
+
+**Validação**
+- Sinal de adoção correta: a experiência local fica mais rápida e previsível sem ampliar o contexto textual.
+- Sinal de uso inadequado: a extensão replica lógica que já deveria estar em prompt, skill ou MCP.
+
+**Alavanca de custo direta**
+- Redução de interação manual repetitiva e menor custo operacional por tarefa.
+
+#### 6.5.8. MCP
+
+**Quando usar**
+- quando o repositório precisa pinçar servidores, ferramentas ou política de acesso em configuração;
+- quando o objetivo é padronizar integrações sem acoplar tudo ao prompt;
+- quando há valor em expor capacidades externas com governança explícita.
+
+**Sugestão padronizada**
+- Problema que evita: integrações ad hoc, sem contrato claro e com comportamento imprevisível.
+- Decisão recomendada: usar MCP quando o acesso precisar ser controlado, observável e reutilizável; os detalhes do protocolo ficam em 6.6.3.
+- Critério de adoção: aplicar quando a integração for recorrente, com dependências estáveis e escopo bem definido.
+- Risco ou limite: servidores MCP sem escopo claro aumentam complexidade e podem inflar o conjunto de ferramentas.
+
+**Como implementar**
+1. Expor apenas as capacidades externas necessárias para o caso.
+2. Declarar permissões, limites e fallback de integração.
+3. Manter contratos pequenos para evitar toolset excessivo.
+
+**Validação**
+- Sinal de adoção correta: a integração fica previsível e reutilizável sem espalhar credenciais ou lógica de acesso.
+- Sinal de uso inadequado: o servidor expõe ferramentas demais ou sem relação com a tarefa.
+
+**Alavanca de custo direta**
+- `Tool reuse` e menos acoplamento entre prompt e integração externa.
 
 ### 6.6. Extensões e Ferramentas
 
