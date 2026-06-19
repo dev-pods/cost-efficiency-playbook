@@ -1,4 +1,4 @@
-"""run_lite_refact.py — Orquestrador headless do pipeline lite-refact.
+"""run_update.py — Orquestrador headless do pipeline update.
 
 Fluxo determinístico (zero token fora da única chamada ao LLM):
     slice → route → build prompt → LLM → patch.
@@ -18,7 +18,7 @@ from patch_applier import apply_patch
 from prompt_templates import build_prompt
 
 _TEMPLATE = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "templates", "lite-refact.template.md")
+    os.path.join(os.path.dirname(__file__), "templates", "update.template.md")
 )
 
 

@@ -1,7 +1,7 @@
 <!--
-  LITE-REFACT — Template ESTÁVEL (prefixo prefix-cacheável).
+  UPDATE — Template ESTÁVEL (prefixo prefix-cacheável).
   Este arquivo NÃO roda no agent mode do VS Code. Ele é o prefixo estável que
-  scripts/prompt_templates.py injeta no pipeline headless (scripts/run_lite_refact.py).
+  scripts/prompt_templates.py injeta no pipeline headless (scripts/run_update.py).
   O bloco "[CONTEXTO DINÂMICO]" (seção + instrução) é ANEXADO ao final em tempo de
   execução pelo pipeline — não o escreva aqui. Mantenha tudo abaixo estável: qualquer
   alteração no texto invalida o prefix cache do provedor.
@@ -29,12 +29,21 @@ determinístico de patch.
 2. **Idioma e tom.** Português, executivo-técnico (CTO/Arquiteto). Conceito ("porquê")
    em no máximo 3 frases; o resto é How-to.
 3. **Convenções estruturais da seção:**
-   - Tabela **Mecanismo de Ação** (`| Problema | Solução | Mecanismo de Ação |`)
+   - Tabela **Mecanismo de Ação** (`| Problema | Solucao | Mecanismo de Acao (De que forma resolve?) |`)
      quando a seção descreve problemas/soluções.
+   - Para itens operacionais, padrões, quick wins e recomendações pontuais em H3+,
+     siga a estrutura de `scripts/templates/playbook-item.template.md`.
+   - Para seções novas ou reescritas extensas, siga a estrutura de
+     `scripts/templates/playbook-section.template.md`, incluindo obrigatoriamente
+     os blocos **## Objetivo**, **## Problemas resolvidos**, **## Como implementar**,
+     **## Caminhos de stack** e **## Alavanca de custo direta**.
    - Ao menos **1 exemplo de código/config** (apenas o stack mais relevante em H3+).
    - **Caminhos de stack** (Legado / Moderno / Low-Code) quando aplicável.
    - **Alavanca de custo direta** quando existir; se não houver, escreva
      literalmente: "Nenhuma alavanca de custo direta para esta seção."
+   - Quando usar o template de item, mantenha explicitamente os blocos
+     **Quando usar**, **Sugestão padronizada**, **Como implementar**,
+     **Validação** e **Alavanca de custo direta**.
 4. **Integridade de Markdown.** Hierarquia de cabeçalhos intacta; tabelas válidas;
    blocos de código fechados (cercas ``` balanceadas).
 5. **Rigor.** Não invente APIs nem versões. Para versão incerta, comente
@@ -52,13 +61,16 @@ determinístico de patch.
 - Não inclua nenhuma outra seção nem o Sumário.
 - Se a instrução for impossível sem violar um invariante, retorne a SEÇÃO ATUAL
   inalterada seguida de uma única linha:
-  `<!-- LITE-REFACT-BLOCKED: <motivo em uma frase> -->`
+  `<!-- UPDATE-BLOCKED: <motivo em uma frase> -->`
 
 <!--
   A partir daqui, o pipeline anexa em tempo de execução:
 
   # [CONTEXTO DINÂMICO]
   - Classe da tarefa: <texto | conteudo-tecnico | arquitetura>
+      texto            → ajustes editoriais, clareza, tom, reestruturação narrativa
+      conteudo-tecnico → código, configuração, exemplos, comandos, versões
+      arquitetura      → decisões de design, trade-offs, padrões, caminhos de stack
   - Seção-alvo: <numeração + título>
   - Instrução de mudança: <o que mudar>
 

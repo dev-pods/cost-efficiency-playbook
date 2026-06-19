@@ -1,5 +1,5 @@
 {
-  "name": "Otimizacao de Custo — Playbook lite-refact",
+  "name": "Otimizacao de Custo — Playbook update",
   // Pipeline em Python puro (stdlib). 3.12 cobre as anotações usadas (X | Y, dict[...]).
   "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
   "features": {
