@@ -1,49 +1,51 @@
 ---
-description: "Use when doing full playbook regeneration, structural expansion, or cross-section updates in README.md with strict FinOps and architecture constraints. Keywords: playbook update, expand catalog, regenerate sections, cost engineering, universal stack."
-name: "Playbook Update Guidance"
+description: "Use ao fazer regeneração completa do playbook, expansão estrutural ou atualizações entre seções em README.md com restrições rigorosas de FinOps e arquitetura. Palavras-chave: atualização do playbook (playbook update), expandir catálogo (expand catalog), regenerar seções (regenerate sections), engenharia de custos (cost engineering), stack universal (universal stack)."
+name: "Guia de Atualização do Playbook"
 applyTo: "README.md"
 ---
-# Playbook Update Guidance
+# Guia de Atualização do Playbook
 
-## Objective
-Refactor or expand README.md as an executive-technical how-to manual focused on cost efficiency, context engineering, model routing, and agent governance.
+## Objetivo
+Refatore ou expanda o README.md como um manual executivo-técnico orientado a implementação, com foco em eficiência de custos, engenharia de contexto, roteamento de modelos e governança de agentes.
 
-## Deterministic-First Rules
-- Treat README.md current state as source of truth.
-- Prefer local deterministic steps (slice, route, patch, validate) before broad generation.
-- Keep changes scoped to target sections and avoid unrelated rewrites.
-- Preserve heading hierarchy and anchor stability when possible.
-- If a deterministic cycle yields no new signal for the same target, stop and return control rather than repeating the same pass.
+## Regras Determinísticas Primeiro
+- Trate o estado atual do README.md como fonte da verdade para todas as seções existentes e para a estrutura de headings.
+- Todo conteúdo em prosa gerado deve estar em inglês. Os termos em português (Mecanismo de Acao, Quando usar, Sugestão padronizada, Como implementar, Validação, Alavanca de custo direta) são identificadores de template e devem aparecer verbatim apenas como headings, sem tradução.
+- Prefira etapas locais determinísticas (slice, route, patch, validate) antes de geração ampla.
+- Mantenha as mudanças restritas às seções alvo e evite reescritas não relacionadas. Seções alvo são aquelas explicitamente listadas no Passo 1 da saída de planejamento do Padrão de Execução. Nenhuma seção fora dessa lista pode ser modificada.
+- Preserve a hierarquia de headings e a estabilidade das âncoras sempre que possível.
+- Se um ciclo determinístico não produzir novo sinal para o mesmo alvo, pare e devolva o controle em vez de repetir o mesmo passo. Ao parar por ausência de novo sinal, emita exatamente: "Cycle halted: no new signal detected for [section name]. Provide updated input, a changed planning signal, or a new target section to continue." Não encerre silenciosamente nem repita a última saída.
 
-## Section Authoring Contract
-- Keep conceptual rationale concise (max 3 sentences per topic).
-- Prioritize implementation detail (how-to, examples, operational checklists).
-- Include Mecanismo de Acao table when section discusses problem/solution pairs.
-- Include direct cost lever when applicable; otherwise state that none applies.
-- For uncertain API/version details, explicitly mark as unverified and point to official docs.
+## Contrato de Redação de Seção
+- Mantenha a justificativa conceitual concisa (máximo de 3 frases por tópico).
+- Priorize detalhes de implementação (como fazer, exemplos, checklists operacionais).
+- Inclua uma tabela Mecanismo de Acao quando uma seção contiver dois ou mais pares problema/solução explicitamente rotulados como sua estrutura organizacional principal.
+- Inclua uma alavanca de custo direta quando a seção descrever uma técnica, ferramenta ou decisão arquitetural que tenha impacto mensurável em custos de computação, tokens ou licenciamento. Caso contrário, declare: "Cost lever: none - this section covers [concept/governance/reference] only."
+- Para qualquer endpoint de API, número de versão ou flag que não seja citado diretamente da fonte da verdade README.md, marque como "[UNVERIFIED - confirm at <official doc URL>]" e não afirme como fato.
 
-## Resource Coverage Contract
-When expanding catalog or pillars, ensure explicit coverage for:
+## Contrato de Cobertura de Recursos
+Ao expandir catálogo ou pilares, garanta cobertura explícita para:
 - Prompt Engineering: few-shot, CoT, prompt chaining, ReAct.
-- Model Engineering: routing by canonical tiers, MoA, quantization paths.
-- Context Engineering: hybrid RAG, filtering, anchoring, docs-as-retrieval, legacy schema mapping.
-- Agent Architecture: IDE agents vs backend orchestration agents, HITL patterns.
+- Model Engineering: roteamento por tiers canônicos, MoA, caminhos de quantização.
+- Context Engineering: RAG híbrido, filtragem, ancoragem, docs-as-retrieval, mapeamento de esquemas legados.
+- Agent Architecture: agentes de IDE vs agentes de orquestração de backend, padrões HITL.
 - Customization Files: AGENTS.md, .copilot-instructions.md, .github/copilot-instructions.md, .agent.md.
-- Tools and Extensions: AI CLI, IDE extensions, MCP integration and enterprise controls.
+- Tools and Extensions: AI CLI, extensões de IDE, integração MCP e controles corporativos.
 
-## Execution Pattern
-1. Plan section targets and acceptance criteria.
-2. For each section, use lightweight edit cycle:
-   - use scripts/run_update.py in dry-run for scoped context
-   - generate section content
-   - apply via scripts/update_cycle.py for patch + feedback history
-3. Validate markdown integrity and summarize risk.
-4. Do not rerun the same section cycle without new input or a changed planning signal.
+## Padrão de Execução
+1. Planeje as seções alvo e os critérios de aceite.
+2. Para cada seção, use um ciclo leve de edição:
+   - 2a. Execute scripts/run_update.py --dry-run --section <target> e confirme que o contexto delimitado está correto antes de prosseguir.
+   - 2b. Gere o conteúdo da seção com base nesse contexto delimitado.
+   - 2c. Aplique via scripts/update_cycle.py --patch --log-feedback. Não avance para 2c se 2a produzir erros ou escopo inesperado.
+   - Se qualquer script estiver indisponível ou retornar código de saída diferente de zero, interrompa o ciclo, reporte a falha com o erro exato e não prossiga para geração de conteúdo ou aplicação de patch até que o problema seja resolvido.
+3. Valide a integridade do markdown e resuma o risco.
+4. Não reexecute o ciclo da mesma seção sem nova entrada ou sem mudança no sinal de planejamento.
 
-## Section Template
-Use scripts/templates/playbook-section.template.md as the default skeleton for new or heavily revised sections.
+## Template de Seção
+Use scripts/templates/playbook-section.template.md como esqueleto padrão para novas seções. Para seções existentes com revisão pesada, preserve a estrutura atual de headings do README.md e mapeie o conteúdo para os blocos do template sem substituir o esqueleto da seção.
 
-## Item Template Contract
-- Use scripts/templates/playbook-item.template.md for H3+ items that describe operational patterns, quick wins, or point recommendations.
-- Preserve the standardized suggestion blocks: Quando usar, Sugestão padronizada, Como implementar, Validação, and Alavanca de custo direta.
-- Do not collapse item guidance into freeform prose when the section is an itemized recommendation; keep the template structure explicit.
+## Contrato de Template de Item
+- Use scripts/templates/playbook-item.template.md para itens H3+ que descrevem padrões operacionais, quick wins ou recomendações pontuais.
+- Preserve os blocos padronizados de sugestão: Quando usar, Sugestão padronizada, Como implementar, Validação e Alavanca de custo direta. Todos os headings de blocos padronizados devem aparecer exatamente como escritos, independentemente do idioma do conteúdo ao redor. Não traduza esses headings.
+- Não colapse a orientação de item em prosa livre quando a seção for uma recomendação em formato de lista; mantenha a estrutura do template explícita.

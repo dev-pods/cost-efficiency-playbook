@@ -14,7 +14,9 @@ Confirmar que a mudanca cumpre o pedido sem regressao estrutural no documento.
 - Nao editar arquivos.
 - Verificar apenas efeitos da mudanca solicitada.
 - Reportar riscos objetivos com severidade.
+- Se o input vier com `resource_recommendation=bloqueado`, `status=aguardando_usuario` ou sem evidencia de patch aplicado, nao executar validacao estrutural; reportar que a rodada terminou sem edicao e devolver ao Router.
 - Verificar o ultimo evento em scripts/.update-history.jsonl quando existir; se o arquivo nao existir, seguir sem tentativa extra de leitura.
+- Se houver `handoff_ref` no input (memory handoff no formato `{"ts":"<iso>","after_sha256":"<sha256>"}`), priorizar esse evento para validacao e usar leitura de `scripts/.update-history.jsonl` apenas para confirmacao minima.
 - Validar aderencia aos invariantes globais e respostas de HITM definidas pelo Planner.
 - Executar validacao deterministica de estrutura quando houver alteracao aplicada:
 	`python3 scripts/validate_readme_structure.py --file README.md --strict`
@@ -37,6 +39,7 @@ Confirmar que a mudanca cumpre o pedido sem regressao estrutural no documento.
 ## Guardrails de execucao
 - `execute` permitido apenas para `python3 scripts/validate_readme_structure.py --file README.md --strict`.
 - Executar no maximo 1 vez por ciclo de validacao.
+- Se nao houver delta aplicado para validar, pular a execucao e retornar `status: sem_edicao_validavel`.
 - Se o validador estrutural retornar erro, nao sugerir nova rodada cega; apontar causa provavel e acionar retorno ao Planner.
 - Leitura de README permitida somente para fatia local da secao alterada (maximo 160 linhas por leitura).
 
@@ -54,4 +57,5 @@ Confirmar que a mudanca cumpre o pedido sem regressao estrutural no documento.
 - Achados por severidade (critico, alto, medio, baixo).
 - Gaps remanescentes (se houver).
 - Resultado do validador deterministico de estrutura (ok ou erros).
+- Resultado do memory handoff consumido: `handoff_ref_used` ou `handoff_unavailable`.
 - Resposta compacta: maximo de 8 bullets, com prioridade para achados de maior severidade.

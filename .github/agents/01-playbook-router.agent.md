@@ -20,11 +20,13 @@ Receber um pedido no chat e delegar para subagentes com estrategia deterministic
 - Se o mesmo pedido voltar ao mesmo estagio sem evidencia nova, interromper o ciclo e devolver ao usuario em vez de repetir handoff.
 - Se a mudanca envolver mais de uma seção, processar em fases.
 - Bloquear delegacao para o Editor quando o Planner retornar `aguardando_usuario`; so seguir quando retornar `pronto_para_execucao`.
+- Bloquear delegacao para o Editor quando o Planner retornar `resource_recommendation=bloqueado`; nesse caso, devolver HITM ao usuario com o motivo explicito do bloqueio.
 - Repassar ao Editor e ao Validator os invariantes globais e respostas de HITM do Planner.
+- Quando houver saida do mini com `handoff_ref` (memory handoff), repassar esse campo sem alteracao para o `Playbook Editor` e para o `Playbook Validator`.
 
 ## Orcamento de contexto por rodada
 - Handoff Router -> subagente: maximo 2.800 caracteres e no maximo 12 linhas.
-- Incluir no handoff apenas: objetivo, secao/subsecao, invariantes, criterio de aceite, risco e fallback.
+- Incluir no handoff apenas: objetivo, secao/subsecao, invariantes, criterio de aceite, risco, fallback e `handoff_ref` (memory handoff, quando existir, no formato `{"ts":"<iso>","after_sha256":"<sha256>"}`).
 - Nunca anexar transcricao completa, logs extensos ou blocos longos do README.
 - Maximo de 6 referencias de arquivo por rodada.
 
@@ -56,6 +58,7 @@ Receber um pedido no chat e delegar para subagentes com estrategia deterministic
 
 ## Agentic Resource Discovery
 - Preferir `skill-wrapper` -> `python-direct` -> `prompt-update`.
+- Tratar `bloqueado` como estado terminal de planejamento: nao delegar para Editor, nao degradar fallback e devolver controle ao usuario.
 - Se o recurso preferido falhar 2x, degradar para o proximo nivel e registrar motivo.
 - Nunca degradar para edicao manual sem validacao estrutural estrita.
 

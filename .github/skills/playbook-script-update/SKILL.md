@@ -18,31 +18,31 @@ Este wrapper e o recurso preferencial quando o fluxo agentico selecionar `resour
 ## Nao usar
 - Refatoracao ampla multi-secao sem planejamento previo.
 - Pedido ambigiuo sem secao alvo definida.
+- Se o pedido for ambiguo ou nao tiver secao alvo, responda com: "Esta skill requer um argumento --section especifico. Forneca o titulo exato da secao a ser atualizada." Nao prosseguir.
 
 ## Procedimento
-1. (Opcional fora do Router) Rodar preflight para risco/cobertura:
+1. Rodar preflight para risco/cobertura:
    - `python3 scripts/planner_preflight.py --file README.md --section "<secao>" --instruction "<instrucao>"`
 2. Se `planning_score.status` for `aguardando_usuario`, interromper e coletar esclarecimentos.
 3. Preparar conteudo final da secao em arquivo local (ex.: `/tmp/new-section.md`).
-4. Executar pipeline com assertions:
+4. Se `--file` nao existir no caminho especificado, abortar imediatamente e retornar erro: "Arquivo nao encontrado: <path>. Nenhuma alteracao foi feita."
+5. Executar pipeline com assertions:
    - [update_with_assertions.sh](./scripts/update_with_assertions.sh)
-5. Se o mesmo input nao produzir novo delta valido, parar o ciclo e devolver controle ao Planner/Router em vez de repetir.
-6. Retornar apenas evidencias compactas:
-   - secoes alteradas
-   - changed/char_delta
-   - scope_guard
-   - validate_readme_structure
+6. Se executar novamente o script com os mesmos argumentos `--file`, `--section` e `--new-content` produzir `char_delta` igual a 0 (nenhuma mudanca detectada), parar o ciclo e devolver controle ao Planner/Router.
+7. Retornar um unico objeto JSON contendo exatamente estas chaves: `sections_changed` (array com nomes de secoes), `changed` (bool), `char_delta` (int), `scope_guard` (string: OK ou FAIL), `validate_readme_structure` (string: OK ou FAIL).
 
 ### Regra de limpeza
 - Sempre criar o conteudo temporario fora do repositório com `mktemp`.
+- Se `mktemp` falhar, abortar imediatamente com exit code 1 e retornar erro: "Falha ao criar arquivo temporario - verifique espaco em disco e permissoes. Nenhuma alteracao foi feita."
 - Sempre usar `trap` para apagar o temporario em `EXIT`, `INT`, `TERM`, `HUP` e `ERR`.
 - Nunca deixar temporario sobrar no workspace ou em `scripts/`.
 
 ## Assertions obrigatorias
 - `changed == true` para alteracao esperada.
 - `scope_guard.strict == OK` (sem alteracao colateral fora da secao).
+- Se `scope_guard.strict` nao produzir saida ou retornar valor nao reconhecido, tratar como FAIL e abortar com erro: "A assertion scope_guard retornou saida inesperada: <raw output>."
 - `validate_readme_structure --strict == OK`.
-- Em falha de assertion: abortar ciclo e retornar causa objetiva.
+- Verificar assertions nesta ordem: (1) `changed`, (2) `scope_guard.strict`, (3) `validate_readme_structure`. Na primeira falha, abortar e retornar essa causa especifica. Nao verificar as assertions restantes apos uma falha.
 - Em repeticao sem novo delta ou novo input: nao rodar o mesmo ciclo novamente.
 
 ## Comando recomendado

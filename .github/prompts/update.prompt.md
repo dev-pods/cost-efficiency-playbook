@@ -1,7 +1,7 @@
 ---
 description: "Slash command interativo: atualiza cirurgicamente UMA seção do playbook usando o Copilot como LLM e os scripts determinísticos (slice/route/patch) para economizar tokens."
 agent: agent
-tools: ['runCommands', 'editFiles', 'problems']
+tools: ['execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'edit/editFiles', 'read/problems']
 ---
 
 <!--
